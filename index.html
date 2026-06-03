@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HCL AttendPro — Team Attendance Tracker</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8f9fc;color:#1a1f2e;font-size:14px;min-height:100vh}
+  :root{--c1:#1a1f2e;--c2:#2d3550;--c3:#3d4f7c;--c4:#5b72b8;--acc:#f59e0b;--green:#10b981;--red:#ef4444;--bg:#f8f9fc;--card:#fff;--border:#e2e8f0;--text:#1a1f2e;--muted:#64748b;--radius:10px}
+  @media(prefers-color-scheme:dark){
+    body{background:#111827;color:#f1f5f9}
+    :root{--bg:#111827;--card:#1f2937;--border:#374151;--text:#f1f5f9;--muted:#9ca3af}
+  }
+  .app{display:flex;height:100vh;overflow:hidden}
+  .sidebar{width:220px;background:var(--c1);color:#fff;display:flex;flex-direction:column;flex-shrink:0}
+  .sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+  .sidebar-logo h1{font-size:15px;font-weight:700;letter-spacing:0.5px;color:#fff}
+  .sidebar-logo p{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.65);transition:all 0.15s;border-left:3px solid transparent;user-select:none}
+  .nav-item:hover{background:rgba(255,255,255,0.06);color:#fff}
+  .nav-item.active{background:rgba(255,255,255,0.1);color:#fff;border-left-color:var(--acc)}
+  .nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .main{flex:1;overflow-y:auto;background:var(--bg)}
+  .page{display:none;padding:24px;max-width:1200px}
+  .page.active{display:block}
+  .page-header{margin-bottom:20px}
+  .page-header h2{font-size:20px;font-weight:700;color:var(--text)}
+  .page-header p{font-size:13px;color:var(--muted);margin-top:3px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+  .card+.card{margin-top:16px}
+  .card-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+  .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
+  .stat-val{font-size:24px;font-weight:700;color:var(--text);margin-top:4px}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+  input,select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text);outline:none;transition:border 0.15s}
+  input:focus,select:focus{border-color:var(--c4);box-shadow:0 0 0 3px rgba(91,114,184,0.1)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);transition:all 0.15s}
+  .btn:hover{background:var(--bg)}
+  .btn-primary{background:var(--c3);color:#fff;border-color:var(--c3)}
+  .btn-primary:hover{background:var(--c2)}
+  .btn-amber{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .btn-amber:hover{opacity:0.9}
+  .btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+  .btn-danger:hover{opacity:0.9}
+  .btn-sm{padding:6px 12px;font-size:12px}
+  .form-group{margin-bottom:12px}
+  .form-group label{font-size:12px;font-weight:500;color:var(--muted);display:block;margin-bottom:5px}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:8px 12px;border-bottom:2px solid var(--border)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(91,114,184,0.03)}
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#166534}
+  .badge-red{background:#fee2e2;color:#991b1b}
+  .badge-amber{background:#fef3c7;color:#92400e}
+  .badge-blue{background:#dbeafe;color:#1e40af}
+  .badge-purple{background:#ede9fe;color:#5b21b6}
+  .badge-gray{background:#f1f5f9;color:#475569}
+  .avatar{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .inline-flex{display:flex;align-items:center;gap:8px}
+  .month-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .month-nav h3{font-size:16px;font-weight:700;color:var(--text);min-width:160px;text-align:center}
+  .att-header{display:flex;gap:2px;margin-bottom:4px}
+  .att-col-label{width:150px;font-size:11px;font-weight:600;color:var(--muted);padding:4px 0;flex-shrink:0}
+  .att-day-label{flex:1;text-align:center;font-size:10px;color:var(--muted);font-weight:600;min-width:26px}
+  .att-row{display:flex;align-items:center;gap:2px;margin-bottom:3px}
+  .att-name{width:150px;flex-shrink:0;padding-right:8px}
+  .att-cell{flex:1;min-width:26px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:700;transition:all 0.1s;border:1px solid transparent;position:relative}
+  .att-cell.weekend{background:#f1f5f9;color:var(--muted);cursor:default;font-size:9px}
+  .att-cell.present{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+  .att-cell.unplanned{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  .att-cell.planned{background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+  .att-cell.holiday{background:#fef3c7;color:#92400e;border-color:#fde68a}
+  .att-cell.holiday.present{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}
+  .att-cell.future{background:#f8f9fc;color:#cbd5e1;cursor:not-allowed}
+  .att-cell:not(.weekend):not(.future):hover{opacity:0.8;transform:scale(1.05)}
+  .tooltip-wrap{position:relative}
+  .tooltip-wrap:hover .tt{display:block}
+  .tt{display:none;position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:#1a1f2e;color:#fff;font-size:10px;padding:4px 8px;border-radius:5px;white-space:nowrap;z-index:100;pointer-events:none}
+  .approve-section{background:var(--c1);border-radius:12px;padding:20px;color:#fff;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+  .approve-section h3{font-size:15px;font-weight:700}
+  .approve-section p{font-size:12px;opacity:0.7;margin-top:3px}
+  .month-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+  .legend-dot{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+  .search-box{position:relative}
+  .search-box input{padding-left:34px}
+  .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;margin-bottom:16px;width:fit-content}
+  .tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);transition:all 0.15s}
+  .tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+  .progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px}
+  .progress-fill{height:100%;border-radius:3px}
+  .holiday-list{max-height:320px;overflow-y:auto}
+  .holiday-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;background:var(--card)}
+  .divider{height:1px;background:var(--border);margin:16px 0}
+  .cycle-hint{font-size:11px;color:var(--muted);padding:8px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);line-height:1.7;margin-top:8px}
+  .empty-state{text-align:center;padding:36px 20px;color:var(--muted);font-size:13px}
+  #toast{position:fixed;bottom:24px;right:24px;background:#1a1f2e;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.25)}
+  #toast.show{display:flex}
+  #toast.success{background:#166534}
+  #toast.error{background:#991b1b}
+  @media(max-width:700px){
+    .sidebar{width:56px}
+    .sidebar-logo p,.nav-label{display:none}
+    .nav-item{justify-content:center;padding:14px 0}
+    .grid2,.grid5{grid-template-columns:1fr}
+    .att-name{width:80px}
+    .approve-section{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+<div id="toast"><span id="toast-msg"></span></div>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>HCL APro</h1>
+      <p>Team Tracker</p>
+    </div>
+    <div class="nav-item active" onclick="nav('attendance')" data-page="attendance">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+      <span class="nav-label">Attendance</span>
+    </div>
+    <div class="nav-item" onclick="nav('members')" data-page="members">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="nav-label">Members</span>
+    </div>
+    <div class="nav-item" onclick="nav('emails')" data-page="emails">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <span class="nav-label">Email List</span>
+    </div>
+    <div class="nav-item" onclick="nav('holidays')" data-page="holidays">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <span class="nav-label">US Holidays</span>
+    </div>
+    <div class="nav-item" onclick="nav('reports')" data-page="reports">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Reports</span>
+    </div>
+  </div>
+  <div class="main">
+
+    <!-- ATTENDANCE PAGE -->
+    <div class="page active" id="page-attendance">
+      <div class="page-header">
+        <h2>Attendance Tracker</h2>
+        <p>Click cells to cycle: Present → Planned Leave → Unplanned Leave → clear</p>
+      </div>
+      <div class="approve-section">
+        <div>
+          <h3 id="approve-month-label">Loading...</h3>
+          <p id="approve-summary-text">Calculating...</p>
+        </div>
+        <button class="btn btn-amber" onclick="approveAttendance()">&#10003; Approve &amp; Send Email</button>
+      </div>
+      <div class="month-summary" id="month-stats"></div>
+      <div class="card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+          <div class="month-nav">
+            <button class="btn btn-sm" onclick="changeMonth(-1)">&#8592;</button>
+            <h3 id="month-label">—</h3>
+            <button class="btn btn-sm" onclick="changeMonth(1)">&#8594;</button>
+          </div>
+          <div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1px solid #bbf7d0"></div>Present (P)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#ede9fe;border:1px solid #c4b5fd"></div>Planned Leave (PL)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:1px solid #fecaca"></div>Unplanned Leave (UL)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;border:1px solid #fde68a"></div>Holiday (H)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:1px solid #bfdbfe"></div>Worked Holiday (W)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#f1f5f9;border:1px solid #e2e8f0"></div>Weekend</div>
+            </div>
+            <div class="cycle-hint">
+              <strong>Normal days:</strong> click to cycle &rarr; Present &rarr; Planned Leave &rarr; Unplanned Leave &rarr; clear<br>
+              <strong>Holiday days:</strong> click to toggle Worked on Holiday / clear
+            </div>
+          </div>
+        </div>
+        <div id="att-grid-container">
+          <div class="empty-state">Add team members to start tracking attendance</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMBERS PAGE -->
+    <div class="page" id="page-members">
+      <div class="page-header"><h2>Team Members</h2><p>Add and manage your team</p></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Add Member</div>
+          <div class="form-group"><label>Full Name *</label><input id="m-name" placeholder="e.g. Sarah Johnson" /></div>
+          <div class="form-group"><label>Role / Title</label><input id="m-role" placeholder="e.g. Software Engineer" /></div>
+          <div class="form-group"><label>Department</label><input id="m-dept" placeholder="e.g. Engineering" /></div>
+          <div class="form-group"><label>Employee ID (optional)</label><input id="m-id" placeholder="e.g. EMP001" /></div>
+          <button class="btn btn-primary" style="width:100%" onclick="addMember()">+ Add Member</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Team Members <span class="badge badge-blue" id="member-count">0</span></div>
+          <div class="search-box" style="margin-bottom:12px">
+            <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="member-search" placeholder="Search members..." oninput="renderMembers()" />
+          </div>
+          <div id="member-list"><div class="empty-state">No members yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMAILS PAGE -->
+    <div class="page" id="page-emails">
+      <div class="page-header"><h2>Email Recipients</h2><p>These addresses receive the attendance approval email</p></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Add Email Address</div>
+          <div class="form-group"><label>Name / Label</label><input id="e-name" placeholder="e.g. HR Manager" /></div>
+          <div class="form-group"><label>Email Address *</label><input id="e-email" type="email" placeholder="e.g. hr@company.com" /></div>
+          <div class="form-group"><label>Role</label>
+            <select id="e-role"><option>Manager</option><option>HR</option><option>Finance</option><option>Admin</option><option>Other</option></select>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="addEmail()">+ Add Recipient</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Recipient List <span class="badge badge-blue" id="email-count">0</span></div>
+          <div id="email-list"><div class="empty-state">No recipients yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOLIDAYS PAGE -->
+    <div class="page" id="page-holidays">
+      <div class="page-header"><h2>US Holiday Calendar</h2><p>Manage holidays — these are excluded from billing day calculations</p></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Add Holiday</div>
+          <div class="form-group"><label>Holiday Name *</label><input id="h-name" placeholder="e.g. Independence Day" /></div>
+          <div class="form-group"><label>Date *</label><input id="h-date" type="date" /></div>
+          <div class="form-group"><label>Type</label>
+            <select id="h-type"><option>Federal Holiday</option><option>Bank Holiday</option><option>Company Holiday</option><option>Other</option></select>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="addHoliday()">+ Add Holiday</button>
+          <div class="divider"></div>
+          <button class="btn" style="width:100%;margin-bottom:8px" onclick="loadDefaultHolidays()">&#8595; Load 2025 US Federal Holidays</button>
+          <button class="btn" style="width:100%" onclick="loadDefaultHolidays2026()">&#8595; Load 2026 US Federal Holidays</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Holiday List <span class="badge badge-blue" id="holiday-count">0</span></div>
+          <div class="tabs">
+            <div class="tab active" onclick="filterHolidays(this,'all')">All</div>
+            <div class="tab" onclick="filterHolidays(this,'2025')">2025</div>
+            <div class="tab" onclick="filterHolidays(this,'2026')">2026</div>
+          </div>
+          <div class="holiday-list" id="holiday-list"><div class="empty-state">No holidays added yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS PAGE -->
+    <div class="page" id="page-reports">
+      <div class="page-header"><h2>Billing Reports</h2><p>Monthly attendance and billing summaries</p></div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;flex:1;min-width:160px"><label>Select Month</label><input id="r-month" type="month" /></div>
+          <button class="btn btn-primary" onclick="generateReport()" style="white-space:nowrap">Generate Report</button>
+        </div>
+      </div>
+      <div id="report-output"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let state = {
+  members: [],
+  emails: [],
+  holidays: [],
+  attendance: {},
+  currentYear: new Date().getFullYear(),
+  currentMonth: new Date().getMonth(),
+  holidayFilter: 'all'
+};
+
+// ===== STORAGE (localStorage for standalone) =====
+function save() {
+  try { localStorage.setItem('attendpro_v2', JSON.stringify(state)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = localStorage.getItem('attendpro_v2');
+    if (d) { const p = JSON.parse(d); state = { ...state, ...p }; }
+  } catch(e) {}
+}
+
+// ===== BOOT =====
+function init() {
+  load();
+  renderAll();
+  updateMonthLabel();
+  updateMonthStats();
+}
+
+function renderAll() {
+  renderMembers(); renderEmails(); renderHolidays(); renderAttendanceGrid();
+}
+
+// ===== NAV =====
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector('[data-page=' + page + ']').classList.add('active');
+  if (page === 'attendance') renderAttendanceGrid();
+  if (page === 'reports') initReportMonth();
+}
+
+// ===== HELPERS =====
+function getInitials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
+function avatarColor(name) {
+  const colors = [['#dbeafe','#1e40af'],['#dcfce7','#166534'],['#fef3c7','#92400e'],['#fce7f3','#9d174d'],['#ede9fe','#5b21b6'],['#ffedd5','#9a3412']];
+  return colors[name.charCodeAt(0) % colors.length];
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function toastMsg(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.className = 'show ' + (type === 'success' ? 'success' : 'error');
+  document.getElementById('toast-msg').textContent = msg;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+function isWeekend(d) { const day = new Date(d + 'T12:00:00').getDay(); return day === 0 || day === 6; }
+function isHoliday(d) { return state.holidays.some(h => h.date === d); }
+function getHolidayName(d) { const h = state.holidays.find(h => h.date === d); return h ? h.name : ''; }
+function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+function padZ(n) { return String(n).padStart(2, '0'); }
+function fmtDate(d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); }
+function fmtMonth(y, m) { return new Date(y, m, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'}); }
+function today() { return new Date().toISOString().slice(0, 10); }
+
+function calcBillingDays(y, m) {
+  let c = 0;
+  const days = getDaysInMonth(y, m);
+  for (let d = 1; d <= days; d++) {
+    const ds = `${y}-${padZ(m+1)}-${padZ(d)}`;
+    if (!isWeekend(ds) && !isHoliday(ds)) c++;
+  }
+  return c;
+}
+
+function getAttCell(memberId, dateStr) { return (state.attendance[dateStr] || {})[memberId] || null; }
+function setAttCell(memberId, dateStr, val) {
+  if (!state.attendance[dateStr]) state.attendance[dateStr] = {};
+  if (val) state.attendance[dateStr][memberId] = val;
+  else delete state.attendance[dateStr][memberId];
+}
+
+function calcMemberStats(memberId, y, m) {
+  const days = getDaysInMonth(y, m);
+  let present = 0, planned = 0, unplanned = 0, holidayWork = 0;
+  for (let d = 1; d <= days; d++) {
+    const ds = `${y}-${padZ(m+1)}-${padZ(d)}`;
+    const s = getAttCell(memberId, ds);
+    if (s === 'present') present++;
+    else if (s === 'planned') planned++;
+    else if (s === 'unplanned') unplanned++;
+    else if (s === 'holiday-work') holidayWork++;
+  }
+  return { present, planned, unplanned, holidayWork };
+}
+
+// ===== ATTENDANCE =====
+function toggleAtt(memberId, dateStr) {
+  if (isWeekend(dateStr) || dateStr > today()) return;
+  const cur = getAttCell(memberId, dateStr);
+  const isHol = isHoliday(dateStr);
+  let next;
+  if (isHol) {
+    next = cur === 'holiday-work' ? null : 'holiday-work';
+  } else {
+    if (!cur) next = 'present';
+    else if (cur === 'present') next = 'planned';
+    else if (cur === 'planned') next = 'unplanned';
+    else next = null;
+  }
+  setAttCell(memberId, dateStr, next);
+  save();
+  const cell = document.querySelector(`[data-cell="${memberId}_${dateStr}"]`);
+  if (cell) updateCellUI(cell, memberId, dateStr);
+  updateMonthStats();
+}
+
+function updateCellUI(cell, memberId, dateStr) {
+  const s = getAttCell(memberId, dateStr) || null;
+  const isHol = isHoliday(dateStr);
+  cell.className = 'att-cell tooltip-wrap';
+  let txt = '', tip = '';
+  if (isHol && s === 'holiday-work') { cell.classList.add('holiday','present'); txt='W'; tip='Worked on holiday'; }
+  else if (isHol) { cell.classList.add('holiday'); txt='H'; tip=getHolidayName(dateStr); }
+  else if (s === 'present') { cell.classList.add('present'); txt='P'; tip='Present'; }
+  else if (s === 'planned') { cell.classList.add('planned'); txt='PL'; tip='Planned Leave'; }
+  else if (s === 'unplanned') { cell.classList.add('unplanned'); txt='UL'; tip='Unplanned Leave'; }
+  else { txt = new Date(dateStr + 'T12:00:00').getDate(); tip='Click to mark'; }
+  cell.innerHTML = `${txt}<span class="tt">${tip}</span>`;
+}
+
+function renderAttendanceGrid() {
+  const y = state.currentYear, m = state.currentMonth, days = getDaysInMonth(y, m);
+  const container = document.getElementById('att-grid-container');
+  if (!state.members.length) {
+    container.innerHTML = '<div class="empty-state">Add team members to start tracking attendance</div>';
+    return;
+  }
+  const today_str = today();
+  let hdr = '<div class="att-header"><div class="att-col-label">Member</div>';
+  for (let d = 1; d <= days; d++) {
+    const ds = `${y}-${padZ(m+1)}-${padZ(d)}`;
+    const dow = ['S','M','T','W','T','F','S'][new Date(ds + 'T12:00:00').getDay()];
+    hdr += `<div class="att-day-label">${d}<br><span style="font-size:9px">${dow}</span></div>`;
+  }
+  hdr += '</div>';
+  let rows = '';
+  state.members.forEach(mb => {
+    const [bg, fc] = avatarColor(mb.name);
+    const stats = calcMemberStats(mb.id, y, m);
+    let cells = '';
+    for (let d = 1; d <= days; d++) {
+      const ds = `${y}-${padZ(m+1)}-${padZ(d)}`;
+      const iswk = isWeekend(ds), isHol = isHoliday(ds), isFut = ds > today_str;
+      const s = getAttCell(mb.id, ds) || null;
+      let cls = 'att-cell tooltip-wrap', txt = '', tip = '';
+      if (iswk) { cls += ' weekend'; txt = new Date(ds+'T12:00:00').getDay()===0?'Su':'Sa'; }
+      else if (isFut) { cls += ' future'; txt = d; }
+      else if (isHol && s==='holiday-work') { cls += ' holiday present'; txt='W'; tip='Worked on holiday'; }
+      else if (isHol) { cls += ' holiday'; txt='H'; tip=getHolidayName(ds); }
+      else if (s==='present') { cls += ' present'; txt='P'; tip='Present'; }
+      else if (s==='planned') { cls += ' planned'; txt='PL'; tip='Planned Leave'; }
+      else if (s==='unplanned') { cls += ' unplanned'; txt='UL'; tip='Unplanned Leave'; }
+      else { txt = d; tip='Click to mark'; }
+      const clickable = !iswk && !isFut;
+      cells += `<div class="${cls}" ${clickable?`onclick="toggleAtt('${mb.id}','${ds}')"`:''}data-cell="${mb.id}_${ds}">${txt}${tip?`<span class="tt">${tip}</span>`:''}</div>`;
+    }
+    rows += `<div class="att-row">
+      <div class="att-name inline-flex">
+        <div class="avatar" style="background:${bg};color:${fc};width:24px;height:24px;font-size:9px;flex-shrink:0">${getInitials(mb.name)}</div>
+        <div>
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${mb.name}</div>
+          <div style="font-size:10px;color:var(--muted)">${stats.present}P ${stats.planned>0?stats.planned+'PL ':''} ${stats.unplanned>0?stats.unplanned+'UL':''}</div>
+        </div>
+      </div>${cells}</div>`;
+  });
+  container.innerHTML = hdr + '<div style="overflow-x:auto"><div style="min-width:max-content">' + rows + '</div></div>';
+}
+
+function updateMonthLabel() {
+  document.getElementById('month-label').textContent = fmtMonth(state.currentYear, state.currentMonth);
+}
+
+function updateMonthStats() {
+  const y = state.currentYear, m = state.currentMonth;
+  const billing = calcBillingDays(y, m);
+  const totalDays = getDaysInMonth(y, m);
+  const holidays = state.holidays.filter(h => h.date.startsWith(`${y}-${padZ(m+1)}`)).length;
+  let totalP = 0, totalPL = 0, totalUL = 0;
+  state.members.forEach(mb => {
+    const s = calcMemberStats(mb.id, y, m);
+    totalP += s.present; totalPL += s.planned; totalUL += s.unplanned;
+  });
+  document.getElementById('month-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Billing Days</div><div class="stat-val" style="color:var(--c4)">${billing}</div><div class="stat-sub">Excl. weekends &amp; holidays</div></div>
+    <div class="stat-card"><div class="stat-label">Holidays</div><div class="stat-val" style="color:#92400e">${holidays}</div><div class="stat-sub">This month</div></div>
+    <div class="stat-card"><div class="stat-label">Team Present</div><div class="stat-val" style="color:var(--green)">${totalP}</div><div class="stat-sub">Total attendances</div></div>
+    <div class="stat-card"><div class="stat-label">Planned Leaves</div><div class="stat-val" style="color:#5b21b6">${totalPL}</div><div class="stat-sub">Pre-approved</div></div>
+    <div class="stat-card"><div class="stat-label">Unplanned Leaves</div><div class="stat-val" style="color:var(--red)">${totalUL}</div><div class="stat-sub">Absent / unplanned</div></div>
+  `;
+  document.getElementById('approve-month-label').textContent = 'Approve: ' + fmtMonth(y, m);
+  document.getElementById('approve-summary-text').textContent = `${billing} billing days · ${state.members.length} members · ${totalP} present · ${totalPL} planned · ${totalUL} unplanned`;
+}
+
+function changeMonth(d) {
+  state.currentMonth += d;
+  if (state.currentMonth > 11) { state.currentMonth = 0; state.currentYear++; }
+  if (state.currentMonth < 0) { state.currentMonth = 11; state.currentYear--; }
+  updateMonthLabel(); updateMonthStats(); renderAttendanceGrid();
+}
+
+// ===== MEMBERS =====
+function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  const role = document.getElementById('m-role').value.trim();
+  const dept = document.getElementById('m-dept').value.trim();
+  const eid = document.getElementById('m-id').value.trim();
+  if (!name) { toastMsg('Please enter a name', 'error'); return; }
+  state.members.push({ id: uid(), name, role, dept, eid, joinDate: today() });
+  save(); renderMembers(); renderAttendanceGrid(); updateMonthStats();
+  ['m-name','m-role','m-dept','m-id'].forEach(id => document.getElementById(id).value = '');
+  toastMsg('Member added successfully');
+}
+function removeMember(id) {
+  if (!confirm('Remove this member? Their attendance history will be kept.')) return;
+  state.members = state.members.filter(m => m.id !== id);
+  save(); renderMembers(); renderAttendanceGrid(); updateMonthStats();
+  toastMsg('Member removed');
+}
+function renderMembers() {
+  const q = (document.getElementById('member-search')?.value || '').toLowerCase();
+  const list = state.members.filter(m => m.name.toLowerCase().includes(q) || (m.role||'').toLowerCase().includes(q));
+  document.getElementById('member-count').textContent = state.members.length;
+  const el = document.getElementById('member-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state">No members found</div>'; return; }
+  el.innerHTML = list.map(m => {
+    const [bg, fc] = avatarColor(m.name);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="inline-flex">
+        <div class="avatar" style="background:${bg};color:${fc}">${getInitials(m.name)}</div>
+        <div>
+          <div style="font-weight:600;font-size:13px">${m.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${m.role||'—'}${m.dept?' &middot; '+m.dept:''}</div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="removeMember('${m.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+// ===== EMAILS =====
+function addEmail() {
+  const name = document.getElementById('e-name').value.trim();
+  const email = document.getElementById('e-email').value.trim();
+  const role = document.getElementById('e-role').value;
+  if (!email || !email.includes('@')) { toastMsg('Enter a valid email address', 'error'); return; }
+  if (state.emails.some(e => e.email === email)) { toastMsg('Email already exists', 'error'); return; }
+  state.emails.push({ id: uid(), name, email, role });
+  save(); renderEmails();
+  document.getElementById('e-name').value = ''; document.getElementById('e-email').value = '';
+  toastMsg('Recipient added');
+}
+function removeEmail(id) {
+  state.emails = state.emails.filter(e => e.id !== id);
+  save(); renderEmails(); toastMsg('Recipient removed');
+}
+function renderEmails() {
+  document.getElementById('email-count').textContent = state.emails.length;
+  const el = document.getElementById('email-list');
+  if (!state.emails.length) { el.innerHTML = '<div class="empty-state">No recipients yet</div>'; return; }
+  el.innerHTML = state.emails.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:600;font-size:13px">${e.name || e.email}</div>
+        <div style="font-size:11px;color:var(--muted)">${e.email} &middot; <span class="badge badge-blue">${e.role}</span></div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="removeEmail('${e.id}')">Remove</button>
+    </div>`).join('');
+}
+
+// ===== HOLIDAYS =====
+const US_2025 = [
+  {name:"New Year's Day",date:"2025-01-01"},{name:"MLK Jr. Day",date:"2025-01-20"},
+  {name:"Presidents' Day",date:"2025-02-17"},{name:"Memorial Day",date:"2025-05-26"},
+  {name:"Juneteenth",date:"2025-06-19"},{name:"Independence Day",date:"2025-07-04"},
+  {name:"Labor Day",date:"2025-09-01"},{name:"Columbus Day",date:"2025-10-13"},
+  {name:"Veterans Day",date:"2025-11-11"},{name:"Thanksgiving",date:"2025-11-27"},
+  {name:"Christmas Day",date:"2025-12-25"}
+];
+const US_2026 = [
+  {name:"New Year's Day",date:"2026-01-01"},{name:"MLK Jr. Day",date:"2026-01-19"},
+  {name:"Presidents' Day",date:"2026-02-16"},{name:"Memorial Day",date:"2026-05-25"},
+  {name:"Juneteenth",date:"2026-06-19"},{name:"Independence Day",date:"2026-07-04"},
+  {name:"Labor Day",date:"2026-09-07"},{name:"Columbus Day",date:"2026-10-12"},
+  {name:"Veterans Day",date:"2026-11-11"},{name:"Thanksgiving",date:"2026-11-26"},
+  {name:"Christmas Day",date:"2026-12-25"}
+];
+function loadDefaultHolidays() {
+  let a = 0;
+  US_2025.forEach(h => { if (!state.holidays.some(e => e.date === h.date)) { state.holidays.push({...h, id:uid(), type:'Federal Holiday'}); a++; } });
+  save(); renderHolidays(); renderAttendanceGrid(); updateMonthStats();
+  toastMsg(a + ' holidays loaded for 2025');
+}
+function loadDefaultHolidays2026() {
+  let a = 0;
+  US_2026.forEach(h => { if (!state.holidays.some(e => e.date === h.date)) { state.holidays.push({...h, id:uid(), type:'Federal Holiday'}); a++; } });
+  save(); renderHolidays(); renderAttendanceGrid(); updateMonthStats();
+  toastMsg(a + ' holidays loaded for 2026');
+}
+function addHoliday() {
+  const name = document.getElementById('h-name').value.trim();
+  const date = document.getElementById('h-date').value;
+  const type = document.getElementById('h-type').value;
+  if (!name || !date) { toastMsg('Enter name and date', 'error'); return; }
+  if (state.holidays.some(h => h.date === date)) { toastMsg('Holiday already exists for this date', 'error'); return; }
+  state.holidays.push({ id: uid(), name, date, type });
+  state.holidays.sort((a, b) => a.date.localeCompare(b.date));
+  save(); renderHolidays(); renderAttendanceGrid(); updateMonthStats();
+  document.getElementById('h-name').value = ''; document.getElementById('h-date').value = '';
+  toastMsg('Holiday added');
+}
+function removeHoliday(id) {
+  state.holidays = state.holidays.filter(h => h.id !== id);
+  save(); renderHolidays(); renderAttendanceGrid(); updateMonthStats();
+  toastMsg('Holiday removed');
+}
+function filterHolidays(el, f) {
+  state.holidayFilter = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderHolidays();
+}
+function renderHolidays() {
+  document.getElementById('holiday-count').textContent = state.holidays.length;
+  const list = state.holidays.filter(h => state.holidayFilter === 'all' || h.date.startsWith(state.holidayFilter));
+  list.sort((a, b) => a.date.localeCompare(b.date));
+  const el = document.getElementById('holiday-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state">No holidays found</div>'; return; }
+  el.innerHTML = list.map(h => `
+    <div class="holiday-item">
+      <div>
+        <div style="font-weight:600;font-size:13px">${h.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmtDate(h.date)} &middot; <span class="badge badge-amber">${h.type}</span></div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="removeHoliday('${h.id}')">Remove</button>
+    </div>`).join('');
+}
+
+// ===== APPROVE =====
+function approveAttendance() {
+  const y = state.currentYear, m = state.currentMonth;
+  const monthName = fmtMonth(y, m);
+  const billing = calcBillingDays(y, m);
+  if (!state.members.length) { toastMsg('No team members to approve', 'error'); return; }
+  if (!state.emails.length && !confirm('No email recipients configured. Show email body anyway?')) return;
+  const rows = state.members.map(mb => {
+    const s = calcMemberStats(mb.id, y, m);
+    const pct = billing > 0 ? Math.round(s.present / billing * 100) : 0;
+    return `  - ${mb.name} (${mb.role||'N/A'}): Present ${s.present}/${billing} days (${pct}%) | Planned Leave: ${s.planned} | Unplanned Leave: ${s.unplanned}`;
+  }).join('\n');
+  const hols = state.holidays.filter(h => h.date.startsWith(`${y}-${padZ(m+1)}`)).map(h => `  - ${h.name} (${fmtDate(h.date)})`).join('\n');
+  const subject = `Attendance Approved: ${monthName}`;
+  const body = `Hi Team,\n\nAttendance for ${monthName} has been reviewed and approved.\n\nMONTH: ${monthName}\nBILLING DAYS: ${billing} (excluding weekends & US holidays)\n\nTEAM ATTENDANCE SUMMARY:\n${rows || '  (No members)'}\n\nLEAVE LEGEND:\n  P = Present  |  PL = Planned Leave  |  UL = Unplanned Leave (Absent)\n\n${hols ? 'HOLIDAYS THIS MONTH:\n' + hols + '\n\n' : ''}STATUS: APPROVED\n\nBest regards,\nAttendPro System`;
+  const recipients = state.emails.map(e => e.email);
+  if (recipients.length > 0) {
+    window.location.href = `mailto:${recipients.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  } else {
+    alert('No recipients set. Email content:\n\nSubject: ' + subject + '\n\n' + body);
+  }
+  toastMsg('Email client opened with approval summary!');
+}
+
+// ===== REPORTS =====
+function initReportMonth() {
+  const el = document.getElementById('r-month');
+  if (!el.value) el.value = `${state.currentYear}-${padZ(state.currentMonth + 1)}`;
+}
+function generateReport() {
+  const val = document.getElementById('r-month').value;
+  if (!val) { toastMsg('Select a month', 'error'); return; }
+  const [y, mo] = val.split('-').map(Number); const m = mo - 1;
+  const billing = calcBillingDays(y, m);
+  const monthName = fmtMonth(y, m);
+  if (!state.members.length) {
+    document.getElementById('report-output').innerHTML = '<div class="empty-state">No members to report</div>';
+    return;
+  }
+  let totalP = 0, totalPL = 0, totalUL = 0;
+  const memberRows = state.members.map(mb => {
+    const s = calcMemberStats(mb.id, y, m);
+    totalP += s.present; totalPL += s.planned; totalUL += s.unplanned;
+    const pct = billing > 0 ? Math.round(s.present / billing * 100) : 0;
+    const [bg, fc] = avatarColor(mb.name);
+    return `<tr>
+      <td><div class="inline-flex">
+        <div class="avatar" style="background:${bg};color:${fc};width:26px;height:26px;font-size:10px">${getInitials(mb.name)}</div>
+        <div><div style="font-weight:600">${mb.name}</div><div style="font-size:11px;color:var(--muted)">${mb.role||'—'}</div></div>
+      </div></td>
+      <td style="text-align:center"><span class="badge badge-green">${s.present}</span></td>
+      <td style="text-align:center"><span class="badge badge-purple">${s.planned}</span></td>
+      <td style="text-align:center"><span class="badge badge-red">${s.unplanned}</span></td>
+      <td style="text-align:center">${billing}</td>
+      <td style="text-align:center">
+        <div>${pct}%</div>
+        <div class="progress-bar" style="width:80px"><div class="progress-fill" style="width:${pct}%;background:${pct>=90?'var(--green)':pct>=70?'var(--acc)':'var(--red)'}"></div></div>
+      </td>
+      <td><span class="badge ${pct>=90?'badge-green':pct>=70?'badge-amber':'badge-red'}">${pct>=90?'Excellent':pct>=70?'Good':'Low'}</span></td>
+    </tr>`;
+  }).join('');
+  const hols = state.holidays.filter(h => h.date.startsWith(`${y}-${padZ(mo)}`));
+  document.getElementById('report-output').innerHTML = `
+    <div class="grid5" style="margin-bottom:16px">
+      <div class="stat-card"><div class="stat-label">Billing Days</div><div class="stat-val" style="color:var(--c4)">${billing}</div></div>
+      <div class="stat-card"><div class="stat-label">Members</div><div class="stat-val">${state.members.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Total Present</div><div class="stat-val" style="color:var(--green)">${totalP}</div></div>
+      <div class="stat-card"><div class="stat-label">Planned Leaves</div><div class="stat-val" style="color:#5b21b6">${totalPL}</div></div>
+      <div class="stat-card"><div class="stat-label">Unplanned Leaves</div><div class="stat-val" style="color:var(--red)">${totalUL}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">${monthName} — Full Report</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Member</th>
+            <th style="text-align:center">Present</th>
+            <th style="text-align:center">Planned Leave</th>
+            <th style="text-align:center">Unplanned Leave</th>
+            <th style="text-align:center">Billing Days</th>
+            <th style="text-align:center">Attendance %</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody>${memberRows}</tbody>
+        </table>
+      </div>
+    </div>
+    ${hols.length ? `<div class="card" style="margin-top:16px">
+      <div class="card-title">Holidays in ${monthName}</div>
+      ${hols.map(h => `<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between">
+        <span><strong>${h.name}</strong> &mdash; ${fmtDate(h.date)}</span>
+        <span class="badge badge-amber">${h.type}</span>
+      </div>`).join('')}
+    </div>` : ''}
+  `;
+}
+
+init();
+</script>
+</body>
+</html>
